@@ -7,7 +7,7 @@
 #include "mfb/config.h"
 
 bool mfb_settings_init(mfb_launch_config *config, const char *launch_path);
-void mfb_settings_save(const mfb_launch_config *config);
+bool mfb_settings_save(const mfb_launch_config *config);
 void mfb_settings_shutdown(void);
 
 #endif

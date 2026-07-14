@@ -18,7 +18,6 @@ ifeq ($(wildcard $(LIBFAT_LIB)),)
 $(error "Pinned libogc2-compatible libfat is required; build references/upstream/libfat with make wii-release")
 endif
 include $(LIBOGC2_RULES)
-LIBOGC2_ROOT := $(MFB_ROOT)/references/upstream/libogc2
 
 TARGET      := mfb-loader
 BUILD       := build
@@ -60,18 +59,9 @@ freestanding:
 
 package: all
 	@mkdir -p dist/apps/mfb-loader
-	@mkdir -p dist/licenses
 	@cp $(TARGET).dol dist/apps/mfb-loader/boot.dol
 	@cp hbc/icon.png dist/apps/mfb-loader/icon.png
 	@cp hbc/meta.xml dist/apps/mfb-loader/meta.xml
-	@cp README.md dist/README.md
-	@cp LICENSE dist/LICENSE
-	@cp THIRD_PARTY_NOTICES.txt dist/THIRD_PARTY_NOTICES.txt
-	@cp $(LIBOGC2_ROOT)/libogc2_license.txt dist/licenses/libogc2-zlib.txt
-	@cp $(LIBOGC2_ROOT)/rtems_license.txt dist/licenses/libogc2-rtems.txt
-	@cp $(LIBOGC2_ROOT)/wiiuse/license_libogc.txt dist/licenses/libogc2-wiiuse-GPL-3.0-with-linking-exception.txt
-	@cp $(LIBFAT_ROOT)/libfat_license.txt dist/licenses/libfat-BSD-3-Clause.txt
-	@cp licenses/lwbt-BSD-3-Clause.txt dist/licenses/lwbt-BSD-3-Clause.txt
 	@$(MAKE) --no-print-directory privacy-check
 
 privacy-check:

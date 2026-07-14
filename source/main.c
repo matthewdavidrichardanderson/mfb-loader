@@ -97,13 +97,15 @@ static void change_setting(mfb_launch_config *config, int row, int direction)
     case ROW_LAUNCH:
         break;
     }
-    mfb_logf("Settings: aspect=%s scale=%s filter=%s 480p=%s region=%s",
+    mfb_logf("Settings: video=%s aspect=%s scale=%s filter=%s 480p=%s region=%s",
+             mfb_video_mode_string(config->video_mode),
              mfb_aspect_mode_string(config->aspect_mode),
              mfb_scale_mode_string(config->scale_mode),
              mfb_filter_mode_string(config->filter_mode),
              config->patch_480p ? "on" : "off",
              config->region_policy == MFB_REGION_DISC ? "free" : "console");
-    mfb_settings_save(config);
+    if (!mfb_settings_save(config))
+        mfb_logf("Settings save failed");
 }
 
 int main(int argc, char **argv)
@@ -114,7 +116,8 @@ int main(int argc, char **argv)
     mfb_log_init();
     mfb_logf("MFB started");
     mfb_launch_config config = mfb_config_defaults();
-    mfb_settings_init(&config, argc > 0 ? argv[0] : NULL);
+    const bool settings_loaded = mfb_settings_init(&config, argc > 0 ? argv[0] : NULL);
+    mfb_logf("Settings: %s", settings_loaded ? "loaded" : "defaults");
     mfb_video_apply_preview(&config);
     int row = 0;
     u32 cover_status = 0;

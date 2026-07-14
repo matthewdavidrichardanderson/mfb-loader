@@ -11,6 +11,7 @@
 
 #define MFB_SETTINGS_MAGIC 0x4d464243u
 #define MFB_SETTINGS_VERSION 1u
+#define MFB_SETTINGS_VARIANT_PATH_CAPACITY (sizeof(s_path) + 8u)
 
 typedef struct {
     u32 magic;
@@ -80,6 +81,24 @@ static bool decode(const mfb_settings_record *record, mfb_launch_config *config)
     return true;
 }
 
+static bool make_variant_path(char *path, size_t capacity, const char *suffix)
+{
+    const int length = snprintf(path, capacity, "%s%s", s_path, suffix);
+    return length >= 0 && (size_t)length < capacity;
+}
+
+static bool read_config_file(const char *path, mfb_launch_config *config)
+{
+    FILE *file = fopen(path, "rb");
+    if (file == NULL)
+        return false;
+
+    mfb_settings_record record;
+    const bool read_ok = fread(&record, sizeof(record), 1, file) == 1;
+    const bool close_ok = fclose(file) == 0;
+    return read_ok && close_ok && decode(&record, config);
+}
+
 bool mfb_settings_init(mfb_launch_config *config, const char *launch_path)
 {
     if (config == NULL)
@@ -101,35 +120,79 @@ bool mfb_settings_init(mfb_launch_config *config, const char *launch_path)
     } else {
         snprintf(s_path, sizeof(s_path), "%s:/apps/mfb-loader/settings.cfg", s_volume);
     }
-    FILE *file = fopen(s_path, "rb");
-    if (file == NULL)
+    char temporary[MFB_SETTINGS_VARIANT_PATH_CAPACITY];
+    char backup[MFB_SETTINGS_VARIANT_PATH_CAPACITY];
+    if (!make_variant_path(temporary, sizeof(temporary), ".tmp") ||
+        !make_variant_path(backup, sizeof(backup), ".bak"))
         return false;
-    mfb_settings_record record;
-    const bool read_ok = fread(&record, sizeof(record), 1, file) == 1;
-    fclose(file);
-    return read_ok && decode(&record, config);
+
+    if (read_config_file(s_path, config)) {
+        remove(temporary);
+        remove(backup);
+        return true;
+    }
+
+    /* Recover the last known-good record if a save was interrupted. */
+    if (read_config_file(backup, config)) {
+        remove(s_path);
+        rename(backup, s_path);
+        remove(temporary);
+        return true;
+    }
+
+    /* A complete temporary record is still protected by its checksum. */
+    if (read_config_file(temporary, config)) {
+        remove(s_path);
+        rename(temporary, s_path);
+        remove(backup);
+        return true;
+    }
+
+    return false;
 }
 
-void mfb_settings_save(const mfb_launch_config *config)
+bool mfb_settings_save(const mfb_launch_config *config)
 {
     if (!s_mounted || !mfb_config_valid(config))
-        return;
+        return false;
 
-    char temporary[sizeof(s_path) + 4];
-    snprintf(temporary, sizeof(temporary), "%s.tmp", s_path);
+    char temporary[MFB_SETTINGS_VARIANT_PATH_CAPACITY];
+    char backup[MFB_SETTINGS_VARIANT_PATH_CAPACITY];
+    if (!make_variant_path(temporary, sizeof(temporary), ".tmp") ||
+        !make_variant_path(backup, sizeof(backup), ".bak"))
+        return false;
+
     FILE *file = fopen(temporary, "wb");
     if (file == NULL)
-        return;
+        return false;
     const mfb_settings_record record = encode(config);
     const bool wrote = fwrite(&record, sizeof(record), 1, file) == 1;
     const bool closed = fclose(file) == 0;
     if (!wrote || !closed) {
         remove(temporary);
-        return;
+        return false;
     }
-    remove(s_path);
-    if (rename(temporary, s_path) != 0)
+
+    FILE *existing = fopen(s_path, "rb");
+    const bool had_existing = existing != NULL;
+    if (existing != NULL)
+        fclose(existing);
+
+    remove(backup);
+    if (had_existing && rename(s_path, backup) != 0) {
         remove(temporary);
+        return false;
+    }
+
+    if (rename(temporary, s_path) != 0) {
+        if (had_existing)
+            rename(backup, s_path);
+        remove(temporary);
+        return false;
+    }
+
+    remove(backup);
+    return true;
 }
 
 void mfb_settings_shutdown(void)

@@ -69,9 +69,8 @@ MFB Loader is licensed under the GNU General Public License version 2 only.
 See [LICENSE](LICENSE).
 
 Third-party components retain their respective licenses. Their notices are
-listed in [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt) and included with
-binary distributions. If you redistribute binaries, you must also satisfy the
-GPL's corresponding-source requirements.
+listed in [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt). If you redistribute
+binaries, you must also satisfy the GPL's corresponding-source requirements.
 
 Wii and Nintendo are trademarks of Nintendo. This independent homebrew project
 is not affiliated with, authorized by, or endorsed by Nintendo.
