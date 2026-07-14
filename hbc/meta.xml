@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<app version="1">
+  <name>MFB Loader</name>
+  <coder>MFB-Crew</coder>
+  <version>0.1.0-dev</version>
+  <release_date>20260713000000</release_date>
+  <short_description>Load Wii discs with custom video options</short_description>
+  <long_description>Load Wii discs with custom video settings and vanilla load times</long_description>
+  <ahb_access/>
+</app>

@@ -1,0 +1,33 @@
+MFB Loader links against the following third-party libraries:
+
+libogc2
+https://github.com/extremscorner/libogc2
+
+This includes libogc, libdi, wiiuse, and lwBT. Their license texts and
+notices are included in the licenses directory of binary distributions.
+
+libfat
+https://github.com/extremscorner/libfat
+
+Its license text is included in the licenses directory of binary
+distributions.
+
+The physical-disc and apploader foundation follows TinyLoad by Hector Martin.
+TinyLoad includes code from the Homebrew Channel stub, based on dhewg's Gecko
+Loader stub, with copyright notices for Andre Heider and Hector Martin. TinyLoad
+is licensed under version 2 of the GNU General Public License.
+
+TinyLoad 0.2
+https://wiibrew.org/wiki/TinyLoad
+
+The game patch signatures and patch values were informed by the GPL-covered
+implementations in WiiFlow Lite and Gecko OS:
+
+WiiFlow Lite
+https://github.com/Fledge68/WiiFlow_Lite
+
+This includes the 480p pixel fix published by leseratte and based on the issue
+identified by Extrems, as well as patch work originating in Gecko OS by Nuke.
+
+MFB Loader's source is covered by version 2 of the GNU General Public License.
+See LICENSE. Third-party components remain covered by their respective licenses.

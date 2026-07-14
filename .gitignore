@@ -1,0 +1,13 @@
+/build/
+/dist/
+/docs/
+/*.dol
+/*.elf
+/*.map
+/freestanding/*.bin
+/freestanding/*.elf
+/freestanding/*.map
+/freestanding/*.o
+/.tmp/
+/references/upstream/
+/references/archives/

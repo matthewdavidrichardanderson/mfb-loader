@@ -1,0 +1,53 @@
+{
+  "generated": "2026-07-13",
+  "git": [
+    {
+      "name": "libogc2",
+      "url": "https://github.com/extremscorner/libogc2.git",
+      "commit": "c4a4f22dc09fc1c0df2cef4a21483a27e67423f1"
+    },
+    {
+      "name": "libfat",
+      "url": "https://github.com/extremscorner/libfat.git",
+      "commit": "c756e1e3024e2ef2e037e99d3fd057b37ac02c5b"
+    },
+    {
+      "name": "usbloadergx",
+      "url": "https://github.com/wiidev/usbloadergx.git",
+      "commit": "e25c4f3501ed957b7db73f79c51fdf00715ab2e2"
+    },
+    {
+      "name": "wiiflow-lite",
+      "url": "https://github.com/Fledge68/WiiFlow_Lite.git",
+      "commit": "66d12730f6d77fda4f659f2da2828303e074944d"
+    },
+    {
+      "name": "d2x-cios",
+      "url": "https://github.com/wiidev/d2x-cios.git",
+      "commit": "33ad1eeeb8f562df99e7d7ca428fdd36e0e31be7"
+    },
+    {
+      "name": "swiss-gc",
+      "url": "https://github.com/emukidid/swiss-gc.git",
+      "commit": "8fe49ecbf98fcf296a1051874fc9d2e096a171e6"
+    }
+  ],
+  "archives": [
+    {
+      "name": "tinyload-0.2-src",
+      "url": "https://wiibrew.org/w/images/7/79/Tinyload-0.2-src.tar.bz2",
+      "path": "archives/tinyload-0.2-src.tar.bz2",
+      "sha256": "72eaac78cf4022526877eae04e26551d1c11dbf2a591b4cda634ec666e6bcfa9"
+    }
+  ],
+  "unresolved": [
+    {
+      "name": "NeoGamma R9 beta 56 source",
+      "reason": "The original non-git archive host returned HTTP 403; do not use an unverified mirror."
+    },
+    {
+      "name": "Gecko OS 1.9.3.1 source",
+      "reason": "WiiBrew's current Source link is incorrect; locate and verify the historical archive."
+    }
+  ]
+}
