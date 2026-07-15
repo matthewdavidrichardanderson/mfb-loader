@@ -9,7 +9,7 @@ MACH := -mcpu=750 -mno-eabi -mhard-float -mno-sdata -ffreestanding
 CFLAGS := $(MACH) -O2 -Wall -Wextra -Werror -ffunction-sections -Iinclude
 ASFLAGS := $(MACH) -D_LANGUAGE_ASSEMBLY
 LDFLAGS := $(MACH) -nostartfiles -nostdlib -Wl,-T,link.ld,-Map,$(TARGET).map,--gc-sections
-OBJS := start.o cache.o memory.o ipc.o di.o patch.o launch.o
+OBJS := start.o cache.o memory.o ipc.o es.o di.o patch.o launch.o
 
 .PHONY: all clean
 all: $(TARGET).bin

@@ -4,6 +4,7 @@
 #include "mfb_types.h"
 #include "mfb_cache.h"
 #include "mfb_di.h"
+#include "mfb_es.h"
 #include "mfb_ipc.h"
 #include "mfb_memory.h"
 #include "mfb_patch.h"
@@ -26,6 +27,7 @@ typedef void (*entry_fn)(void (**)(void (*)(const char *, ...)), int (**)(void *
 static app_header header ALIGNED(32);
 static u8 disc_id[32] ALIGNED(32);
 static mfb_patch_report patch_report;
+extern u8 __stack_top[];
 
 static void report(const char *format, ...) { (void)format; }
 static u64 ticks(void)
@@ -42,17 +44,6 @@ static void wait_us(u32 us)
 {
     const u64 until=ticks()+(u64)us*61u;
     while(ticks()<until){}
-}
-static void mark(u32 stage)
-{
-    if (!PARAM->diagnostic_xfb) return;
-    volatile u32 *xfb=(volatile u32*)PARAM->diagnostic_xfb;
-    for(u32 y=0;y<16u;++y) {
-        for(u32 x=0;x<320u;++x) {
-            const u32 cell=x/32u, within=x%32u;
-            xfb[(48u+y)*320u+x]=(cell<stage&&within<20u)?0x91a09136:0x10801080;
-        }
-    }
 }
 static void restore_vi(void)
 {
@@ -76,6 +67,7 @@ static NORETURN void stop(u32 code)
                 xfb[y*320u+x]=(cell<stage&&within<20u)?0xeb80eb80:0x10801080;
             }
         }
+        mfb_dc_flush((void*)xfb,48u*320u*sizeof(*xfb));
     }
     /* Once game sections replace the XFB, repeat the same stage count on the
      * blue disc-slot light: short pulses, followed by a longer pause. */
@@ -138,18 +130,16 @@ void mfb_payload_main(void)
 {
     mfb_params p; mfb_memcpy(&p,(const void*)PARAM,sizeof(p));
     if(p.magic!=MAGIC) stop(0xe001);
-    mark(1);
     mfb_ipc_init();
-    mark(2);
+    if(mfb_es_launch_ios(p.requested_ios)<0) stop(0xe00f);
+    wait_us(100000);
+    mfb_ipc_init();
     if(mfb_di_open()<0) stop(0xe002);
-    mark(3);
     /* The drive was reset and identified during inspection.  After switching
      * to the title's IOS, preserve that state: reopen DI and the partition,
      * matching the proven physical-disc path instead of resetting twice. */
     if(mfb_di_read_id(disc_id)<0) stop(0xe003);
-    mark(4);
     if(mfb_di_open_partition(p.partition_offset)<0) stop(0xe004);
-    mark(5);
     if(mfb_di_read((void*)0x80000000,0x20,0)<0||*(u32*)0x80000018!=0x5d1c9ea3) stop(0xe005);
     if(mfb_di_read(&header,0x20,0x910)<0) stop(0xe006);
     const u32 app_size=header.size+header.trailer;
@@ -162,7 +152,7 @@ void mfb_payload_main(void)
         const u32 section_start=(u32)dst;
         const u32 section_end=section_start+(u32)length;
         if(length<=0||section_end<section_start)stop(0xe008);
-        if(section_start<0x80f15d00u&&section_end>0x80f00000u)stop(0xe00b);
+        if(section_start<(u32)__stack_top&&section_end>0x80f00000u)stop(0xe00b);
         if(mfb_di_read(dst,(u32)length,(u32)offset)<0)stop(0xe008);
         mfb_patch_section(&patch_report,p.config,dst,(u32)length);
         mfb_dc_flush(dst,(u32)length); mfb_ic_invalidate(dst,(u32)length); }

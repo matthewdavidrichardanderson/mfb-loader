@@ -12,4 +12,6 @@ s32 mfb_ios_ioctl(s32 fd, u32 command, void *input, u32 input_length,
                   void *output, u32 output_length);
 s32 mfb_ios_ioctlv(s32 fd, u32 command, u32 input_count, u32 output_count,
                    mfb_iovec *vectors);
+s32 mfb_ios_ioctlv_reboot(s32 fd, u32 command, u32 input_count,
+                          mfb_iovec *vectors);
 #endif

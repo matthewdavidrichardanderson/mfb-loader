@@ -78,6 +78,41 @@ static s32 submit(void)
     return request.result;
 }
 
+/* ES_LaunchTitle reboots IOS and produces two acknowledgements rather than a
+ * normal IPC reply.  Release ownership after the second acknowledgement so
+ * the newly launched IOS can take over the registers. */
+static s32 submit_reboot(void)
+{
+    mfb_dc_flush(&request, sizeof(request));
+    delay_us(500);
+    IPC_MSG_PPC = physical(&request);
+    barrier();
+    IPC_CTRL = 1;
+    barrier();
+
+    const u64 first_deadline = timebase() + 5u * 60750000u;
+    u32 control;
+    while (((control = IPC_CTRL & 6u)) == 0) {
+        if (timebase() >= first_deadline) return -116;
+    }
+    delay_us(500);
+    if (control & 4u) return -117;
+    IPC_CTRL = 2;
+    barrier();
+
+    const u64 second_deadline = timebase() + 5u * 60750000u;
+    while (((control = IPC_CTRL & 6u)) == 0) {
+        if (timebase() >= second_deadline) return -116;
+    }
+    delay_us(500);
+    if (control & 4u) return -117;
+    IPC_CTRL = 2;
+    barrier();
+    IPC_CTRL = 8;
+    barrier();
+    return 0;
+}
+
 s32 mfb_ios_open(const char *path, u32 mode)
 {
     mfb_memset(&request, 0, sizeof(request));
@@ -140,4 +175,24 @@ s32 mfb_ios_ioctlv(s32 fd, u32 command, u32 input_count, u32 output_count,
         }
     }
     return result;
+}
+
+s32 mfb_ios_ioctlv_reboot(s32 fd, u32 command, u32 input_count,
+                          mfb_iovec *vectors)
+{
+    mfb_memset(&request, 0, sizeof(request));
+    for (u32 i = 0; i < input_count; ++i) {
+        if (vectors[i].data && vectors[i].length) {
+            mfb_dc_flush(vectors[i].data, vectors[i].length);
+            vectors[i].data = (void *)physical(vectors[i].data);
+        }
+    }
+    mfb_dc_flush(vectors, input_count * sizeof(*vectors));
+    request.command = 7;
+    request.fd = fd;
+    request.args[0] = command;
+    request.args[1] = input_count;
+    request.args[2] = 0;
+    request.args[3] = physical(vectors);
+    return submit_reboot();
 }

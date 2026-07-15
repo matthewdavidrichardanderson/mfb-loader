@@ -13,7 +13,6 @@
 
 extern const u8 mfb_freestanding_bin[];
 extern const u8 mfb_freestanding_bin_end[];
-extern s32 __IOS_ShutdownSubsystems(void);
 
 static mfb_disc_diagnostics s_diagnostics = {
     .di_init_result = -999,
@@ -217,31 +216,26 @@ s32 mfb_disc_launch(const mfb_launch_config *config)
     mfb_logf("Launch handoff: %lu-byte freestanding baseline, IOS%u, partition %08lx",
              (unsigned long)payload_size, params.requested_ios,
              (unsigned long)params.partition_offset);
-    DI_Close();
-    s_initialized = false;
-    const s32 reload_result = IOS_ReloadIOS(params.requested_ios);
-    if (reload_result < 0)
-        return reload_result;
-    /* IOS_ReloadIOS tears down and recreates libogc subsystems, which can use
-     * the general MEM1 arena.  Install the payload only after that activity so
-     * its fixed 0x80f00000 image cannot be silently overwritten. */
+    /* Install the self-contained loader before leaving libogc.  It owns the
+     * minimal ES reload and DI handoff after libogc shuts down. */
     memcpy(MFB_LAUNCH_PARAM_ADDR, &params, sizeof(params));
     memcpy(payload_address, mfb_freestanding_bin, payload_size);
     DCFlushRange(MFB_LAUNCH_PARAM_ADDR, sizeof(params));
     DCFlushRange(payload_address, payload_size);
     ICInvalidateRange(payload_address, payload_size);
+
+    DI_Close();
+    s_initialized = false;
     VIDEO_SetBlack(true);
     VIDEO_Flush();
     VIDEO_WaitVSync();
-    /* IOS_ReloadIOS reopens libogc-managed IOS services.  A retail title must
-     * inherit a quiet IOS client state; the freestanding payload owns IPC from
-     * this point and reopens only /dev/di. */
+
+    /* Do not initialize libogc under the game's IOS.  The payload takes IPC
+     * ownership, launches the requested IOS through ES, and opens only DI. */
     const s32 shutdown_result = __IOS_ShutdownSubsystems();
-    if (shutdown_result < 0) {
-        VIDEO_SetBlack(false);
-        VIDEO_Flush();
+    if (shutdown_result < 0)
         return shutdown_result;
-    }
+
     ((void (*)(void))payload_address)();
     return -1202;
 }
