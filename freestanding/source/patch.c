@@ -6,8 +6,9 @@
 #include "mfb_cache.h"
 
 /* Opcode signatures and patch values were informed by the GPL implementations
- * in WiiFlow Lite and Gecko OS.  This includes PatchFix480p by leseratte,
- * based on the issue identified by Extrems, and Gecko OS patch work by Nuke. */
+ * in WiiFlow Lite, USB Loader GX, and Gecko OS.  This includes PatchFix480p by
+ * leseratte, based on the issue identified by Extrems, the GXSetDither
+ * signature in USB Loader GX, and Gecko OS patch work by Nuke. */
 
 /* Binary layout of the publicly documented Revolution/libogc render mode. */
 typedef struct {
@@ -23,6 +24,7 @@ typedef struct {
 enum { SCALE_AUTO=0, SCALE_1_TO_1=1 };
 enum { FILTER_AUTO=0, FILTER_OFF=1, FILTER_ON=2 };
 enum { VIDEO_AUTO=0, VIDEO_480I60=1, VIDEO_576I50=2, VIDEO_480P60=3 };
+enum { CONFIG_PATCH_480P=0xff000000u, CONFIG_DISABLE_DITHER=0x00ff0000u };
 
 static const u8 sample_box[24]={
     6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6
@@ -38,6 +40,34 @@ static int equal(const void *left,const void *right,u32 length)
     const u8 *a=left,*b=right;
     while(length--)if(*a++!=*b++)return 0;
     return 1;
+}
+
+static u32 instruction_rt(u32 word) { return (word>>21)&31u; }
+static u32 instruction_ra(u32 word) { return (word>>16)&31u; }
+
+static int is_gx_set_dither(const u32 *code)
+{
+    const u32 bp=instruction_rt(code[0]);
+    const u32 token=instruction_rt(code[1]);
+    const u32 state=instruction_rt(code[3]);
+    const u32 gx=instruction_ra(code[3]);
+    const u16 state_offset=(u16)code[3];
+    return (code[0]&0xfc1fffffu)==0x3c00cc01u &&
+           (code[1]&0xfc1fffffu)==0x38000061u &&
+           code[2]==0x38000000u &&
+           (code[3]&0xfc000000u)==0x80000000u &&
+           (code[4]&0xffe0ffffu)==0x5060177au &&
+           instruction_ra(code[4])==state &&
+           (code[5]&0xfc00ffffu)==0x98008000u &&
+           instruction_rt(code[5])==token && instruction_ra(code[5])==bp &&
+           (code[6]&0xfc00ffffu)==0x90008000u &&
+           instruction_rt(code[6])==state && instruction_ra(code[6])==bp &&
+           (code[7]&0xfc000000u)==0x90000000u &&
+           instruction_rt(code[7])==state && instruction_ra(code[7])==gx &&
+           (u16)code[7]==state_offset &&
+           (code[8]&0xfc00ffffu)==0xb0000002u &&
+           instruction_rt(code[8])==0 && instruction_ra(code[8])==gx &&
+           code[9]==0x4e800020u;
 }
 
 static int is_mode(const rvl_mode *mode)
@@ -141,6 +171,22 @@ static void patch_gx_filter(mfb_patch_report *report,const u32 config[6],
     }
 }
 
+/* Force GXSetDither to use its known zero register for the dither bit.  This
+ * keeps all other PE colour-mode state intact and makes later game requests
+ * unable to turn dithering back on. */
+static void patch_dithering(mfb_patch_report *report,const u32 config[6],
+                            u8 *data,u32 length)
+{
+    if((config[3]&CONFIG_DISABLE_DITHER)==0 || length<40u)return;
+    for(u32 offset=0;offset+40u<=length;offset+=4) {
+        u32 *const code=(u32*)(data+offset);
+        if(is_gx_set_dither(code)) {
+            code[4]&=~(31u<<21);
+            ++report->dither_functions_changed;
+        }
+    }
+}
+
 /* Replace the final return value in the SDK IPL aspect query wrapper.  This
  * changes projection selection only in titles which use the supported query;
  * it does not stretch the VI framebuffer itself. */
@@ -192,7 +238,7 @@ static void patch_480p(mfb_patch_report *report,const u32 config[6])
     };
     u8 *const base=(u8*)0x80000000;
     const u32 length=0x00900000;
-    if(config[3]==0)return;
+    if((config[3]&CONFIG_PATCH_480P)==0)return;
     u8 *site=0;
     u32 injected0=0,injected1=0;
     for(u32 offset=4;offset+36u<=length;offset+=4) {
@@ -283,6 +329,7 @@ void mfb_patch_section(mfb_patch_report *report,const u32 config[6],
     ++report->sections;
     patch_modes(report,config,address,length);
     patch_gx_filter(report,config,address,length);
+    patch_dithering(report,config,address,length);
     patch_aspect(report,config,address,length);
 }
 

@@ -49,6 +49,7 @@ typedef struct {
     mfb_filter_mode filter_mode;
     mfb_video_mode video_mode;
     bool patch_480p;
+    bool disable_dithering;
     mfb_region_policy region_policy;
     mfb_aspect_mode aspect_mode;
 } mfb_launch_config;

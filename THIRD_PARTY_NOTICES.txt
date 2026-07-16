@@ -21,10 +21,15 @@ TinyLoad 0.2
 https://wiibrew.org/wiki/TinyLoad
 
 The game patch signatures and patch values were informed by the GPL-covered
-implementations in WiiFlow Lite and Gecko OS:
+implementations in WiiFlow Lite, USB Loader GX, and Gecko OS:
 
 WiiFlow Lite
 https://github.com/Fledge68/WiiFlow_Lite
+
+USB Loader GX
+https://github.com/wiidev/usbloadergx
+
+This includes the GXSetDither signature used by the optional dithering patch.
 
 This includes the 480p pixel fix published by leseratte and based on the issue
 identified by Extrems, as well as patch work originating in Gecko OS by Nuke.

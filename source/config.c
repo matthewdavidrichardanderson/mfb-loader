@@ -10,6 +10,7 @@ mfb_launch_config mfb_config_defaults(void)
         .filter_mode = MFB_FILTER_AUTO,
         .video_mode = MFB_VIDEO_AUTO,
         .patch_480p = false,
+        .disable_dithering = false,
         .region_policy = MFB_REGION_CONSOLE,
         .aspect_mode = MFB_ASPECT_AUTO,
     };

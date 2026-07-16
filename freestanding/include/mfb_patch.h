@@ -13,6 +13,7 @@ typedef struct {
     u32 runtime_width_changed;
     u32 filters_changed;
     u32 gx_filter_functions_changed;
+    u32 dither_functions_changed;
     u32 aspect_functions_changed;
     u32 pixel_480p_changed;
 } mfb_patch_report;

@@ -26,5 +26,9 @@ typedef struct {
 } mfb_launch_params;
 
 _Static_assert(sizeof(mfb_launch_config) == 24, "launch config ABI changed");
+_Static_assert(__builtin_offsetof(mfb_launch_config, patch_480p) == 12,
+               "480p flag ABI changed");
+_Static_assert(__builtin_offsetof(mfb_launch_config, disable_dithering) == 13,
+               "dithering flag ABI changed");
 
 #endif

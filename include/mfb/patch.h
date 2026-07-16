@@ -19,11 +19,13 @@ typedef struct {
     mfb_patch_state vi_scale;
     mfb_patch_state video_mode;
     mfb_patch_state deflicker;
+    mfb_patch_state dithering;
     mfb_patch_state pixel_480p;
     mfb_patch_state region_free;
     u32 sections_seen;
     u32 video_modes_changed;
     u32 filters_changed;
+    u32 dither_functions_changed;
 } mfb_patch_report;
 
 void mfb_patch_begin(mfb_patch_report *report, const mfb_launch_config *config);

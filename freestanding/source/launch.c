@@ -161,7 +161,8 @@ void mfb_payload_main(void)
     *(volatile u32*)0x800030fc=patch_report.filters_changed;
     mfb_patch_finalize(&patch_report,p.config);
     if(p.config[0]!=0 && patch_report.runtime_width_changed==0)stop(0xe00c);
-    if(p.config[3]!=0 && patch_report.pixel_480p_changed==0)stop(0xe00d);
+    if((p.config[3]&0xff000000u)!=0 && patch_report.pixel_480p_changed==0)stop(0xe00d);
+    if((p.config[3]&0x00ff0000u)!=0 && patch_report.dither_functions_changed==0)stop(0xe011);
     if(p.config[2]!=0 && patch_report.video_modes_changed==0)stop(0xe00e);
     mfb_di_close();
     lowmem(p.requested_ios,p.config);

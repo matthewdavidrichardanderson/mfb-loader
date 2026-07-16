@@ -12,7 +12,7 @@
 #include "mfb/settings.h"
 #include "mfb/video.h"
 
-enum { ROW_VIDEO, ROW_ASPECT, ROW_SCALE, ROW_FILTER, ROW_480P, ROW_REGION, ROW_LAUNCH, ROW_COUNT };
+enum { ROW_VIDEO, ROW_ASPECT, ROW_SCALE, ROW_FILTER, ROW_DITHER, ROW_480P, ROW_REGION, ROW_LAUNCH, ROW_COUNT };
 
 static void draw_menu(const mfb_launch_config *config, int row,
                       mfb_disc_status disc_status, const char disc_id[7])
@@ -25,8 +25,10 @@ static void draw_menu(const mfb_launch_config *config, int row,
            mfb_aspect_mode_string(config->aspect_mode));
     printf("  %c Horizontal scale : %s\n", row == ROW_SCALE ? '>' : ' ',
            mfb_scale_mode_string(config->scale_mode));
-    printf("  %c Vertical filter : %s\n", row == ROW_FILTER ? '>' : ' ',
+    printf("  %c Deflicker        : %s\n", row == ROW_FILTER ? '>' : ' ',
            mfb_filter_mode_string(config->filter_mode));
+    printf("  %c Disable dithering: %s\n", row == ROW_DITHER ? '>' : ' ',
+           config->disable_dithering ? "On" : "Off");
     printf("  %c 480p pixel patch: %s\n", row == ROW_480P ? '>' : ' ',
            config->patch_480p ? "On" : "Off");
     printf("  %c Region policy   : %s\n\n", row == ROW_REGION ? '>' : ' ',
@@ -87,6 +89,9 @@ static void change_setting(mfb_launch_config *config, int row, int direction)
     case ROW_FILTER:
         config->filter_mode = (config->filter_mode + MFB_FILTER_COUNT + direction) % MFB_FILTER_COUNT;
         break;
+    case ROW_DITHER:
+        config->disable_dithering = !config->disable_dithering;
+        break;
     case ROW_480P:
         config->patch_480p = !config->patch_480p;
         break;
@@ -97,11 +102,12 @@ static void change_setting(mfb_launch_config *config, int row, int direction)
     case ROW_LAUNCH:
         break;
     }
-    mfb_logf("Settings: video=%s aspect=%s scale=%s filter=%s 480p=%s region=%s",
+    mfb_logf("Settings: video=%s aspect=%s scale=%s deflicker=%s dithering=%s 480p=%s region=%s",
              mfb_video_mode_string(config->video_mode),
              mfb_aspect_mode_string(config->aspect_mode),
              mfb_scale_mode_string(config->scale_mode),
              mfb_filter_mode_string(config->filter_mode),
+             config->disable_dithering ? "disabled" : "game",
              config->patch_480p ? "on" : "off",
              config->region_policy == MFB_REGION_DISC ? "free" : "console");
     if (!mfb_settings_save(config))

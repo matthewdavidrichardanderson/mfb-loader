@@ -10,7 +10,7 @@
 #include "mfb/settings.h"
 
 #define MFB_SETTINGS_MAGIC 0x4d464243u
-#define MFB_SETTINGS_VERSION 1u
+#define MFB_SETTINGS_VERSION 2u
 #define MFB_SETTINGS_VARIANT_PATH_CAPACITY (sizeof(s_path) + 8u)
 
 typedef struct {
@@ -23,22 +23,40 @@ typedef struct {
     u32 patch_480p;
     u32 region_policy;
     u32 aspect_mode;
+    u32 disable_dithering;
     u32 checksum;
 } mfb_settings_record;
+
+typedef struct {
+    u32 magic;
+    u32 version;
+    u32 size;
+    u32 scale_mode;
+    u32 filter_mode;
+    u32 video_mode;
+    u32 patch_480p;
+    u32 region_policy;
+    u32 aspect_mode;
+    u32 checksum;
+} mfb_settings_record_v1;
 
 static bool s_mounted;
 static char s_volume[4];
 static char s_path[256];
 
-static u32 checksum(const mfb_settings_record *record)
+static u32 checksum_words(const u32 *words, size_t word_count)
 {
-    const u32 *words = (const u32 *)record;
     u32 value = 2166136261u;
-    for (u32 i = 0; i < (sizeof(*record) / sizeof(*words)) - 1; ++i) {
+    for (size_t i = 0; i + 1 < word_count; ++i) {
         value ^= words[i];
         value *= 16777619u;
     }
     return value;
+}
+
+static u32 checksum(const mfb_settings_record *record)
+{
+    return checksum_words((const u32 *)record, sizeof(*record) / sizeof(u32));
 }
 
 static mfb_settings_record encode(const mfb_launch_config *config)
@@ -53,6 +71,7 @@ static mfb_settings_record encode(const mfb_launch_config *config)
         .patch_480p = config->patch_480p ? 1u : 0u,
         .region_policy = config->region_policy,
         .aspect_mode = config->aspect_mode,
+        .disable_dithering = config->disable_dithering ? 1u : 0u,
         .checksum = 0,
     };
     record.checksum = checksum(&record);
@@ -74,6 +93,30 @@ static bool decode(const mfb_settings_record *record, mfb_launch_config *config)
         .patch_480p = record->patch_480p != 0,
         .region_policy = record->region_policy,
         .aspect_mode = record->aspect_mode,
+        .disable_dithering = record->disable_dithering != 0,
+    };
+    if (!mfb_config_valid(&candidate))
+        return false;
+    *config = candidate;
+    return true;
+}
+
+static bool decode_v1(const mfb_settings_record_v1 *record, mfb_launch_config *config)
+{
+    if (record->magic != MFB_SETTINGS_MAGIC || record->version != 1u ||
+        record->size != sizeof(*record) ||
+        record->checksum != checksum_words((const u32 *)record,
+                                           sizeof(*record) / sizeof(u32)))
+        return false;
+
+    const mfb_launch_config candidate = {
+        .scale_mode = record->scale_mode,
+        .filter_mode = record->filter_mode,
+        .video_mode = record->video_mode,
+        .patch_480p = record->patch_480p != 0,
+        .disable_dithering = false,
+        .region_policy = record->region_policy,
+        .aspect_mode = record->aspect_mode,
     };
     if (!mfb_config_valid(&candidate))
         return false;
@@ -93,10 +136,16 @@ static bool read_config_file(const char *path, mfb_launch_config *config)
     if (file == NULL)
         return false;
 
-    mfb_settings_record record;
-    const bool read_ok = fread(&record, sizeof(record), 1, file) == 1;
+    mfb_settings_record record = {0};
+    const size_t bytes_read = fread(&record, 1, sizeof(record), file);
     const bool close_ok = fclose(file) == 0;
-    return read_ok && close_ok && decode(&record, config);
+    if (!close_ok)
+        return false;
+    if (bytes_read == sizeof(record))
+        return decode(&record, config);
+    if (bytes_read == sizeof(mfb_settings_record_v1))
+        return decode_v1((const mfb_settings_record_v1 *)&record, config);
+    return false;
 }
 
 bool mfb_settings_init(mfb_launch_config *config, const char *launch_path)
