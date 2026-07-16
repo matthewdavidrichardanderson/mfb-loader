@@ -29,9 +29,9 @@ static void draw_menu(const mfb_launch_config *config, int row,
            mfb_filter_mode_string(config->filter_mode));
     printf("  %c Disable dithering: %s\n", row == ROW_DITHER ? '>' : ' ',
            config->disable_dithering ? "On" : "Off");
-    printf("  %c 480p pixel patch: %s\n", row == ROW_480P ? '>' : ' ',
+    printf("  %c 480p pixel patch : %s\n", row == ROW_480P ? '>' : ' ',
            config->patch_480p ? "On" : "Off");
-    printf("  %c Region policy   : %s\n\n", row == ROW_REGION ? '>' : ' ',
+    printf("  %c Region policy    : %s\n\n", row == ROW_REGION ? '>' : ' ',
            config->region_policy == MFB_REGION_DISC ? "Region free" : "Console default");
     printf("  %c Launch disc\n\n", row == ROW_LAUNCH ? '>' : ' ');
     printf("  Drive: %s", mfb_disc_status_string(disc_status));

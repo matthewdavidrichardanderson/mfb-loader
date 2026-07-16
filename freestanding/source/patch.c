@@ -7,8 +7,8 @@
 
 /* Opcode signatures and patch values were informed by the GPL implementations
  * in WiiFlow Lite, USB Loader GX, and Gecko OS.  This includes PatchFix480p by
- * leseratte, based on the issue identified by Extrems, the GXSetDither
- * signature in USB Loader GX, and Gecko OS patch work by Nuke. */
+ * leseratte, based on the issue identified by Extrems, Swiss's selective
+ * alpha-dither patch by Extrems, and Gecko OS patch work by Nuke. */
 
 /* Binary layout of the publicly documented Revolution/libogc render mode. */
 typedef struct {
@@ -42,32 +42,16 @@ static int equal(const void *left,const void *right,u32 length)
     return 1;
 }
 
-static u32 instruction_rt(u32 word) { return (word>>21)&31u; }
-static u32 instruction_ra(u32 word) { return (word>>16)&31u; }
-
-static int is_gx_set_dither(const u32 *code)
+static int is_gx_set_blend_mode(const u32 *code)
 {
-    const u32 bp=instruction_rt(code[0]);
-    const u32 token=instruction_rt(code[1]);
-    const u32 state=instruction_rt(code[3]);
-    const u32 gx=instruction_ra(code[3]);
-    const u16 state_offset=(u16)code[3];
-    return (code[0]&0xfc1fffffu)==0x3c00cc01u &&
-           (code[1]&0xfc1fffffu)==0x38000061u &&
-           code[2]==0x38000000u &&
-           (code[3]&0xfc000000u)==0x80000000u &&
-           (code[4]&0xffe0ffffu)==0x5060177au &&
-           instruction_ra(code[4])==state &&
-           (code[5]&0xfc00ffffu)==0x98008000u &&
-           instruction_rt(code[5])==token && instruction_ra(code[5])==bp &&
-           (code[6]&0xfc00ffffu)==0x90008000u &&
-           instruction_rt(code[6])==state && instruction_ra(code[6])==bp &&
-           (code[7]&0xfc000000u)==0x90000000u &&
-           instruction_rt(code[7])==state && instruction_ra(code[7])==gx &&
-           (u16)code[7]==state_offset &&
-           (code[8]&0xfc00ffffu)==0xb0000002u &&
-           instruction_rt(code[8])==0 && instruction_ra(code[8])==gx &&
-           code[9]==0x4e800020u;
+    static const u32 blend_tail[19]={
+        0x3803fffd,0x3903fffe,0x3ce0cc01,0x7c000034,0x812a0220,
+        0x50093528,0x7d080034,0x38000061,0x98078000,0x506907fe,
+        0x5109e7bc,0x38000000,0x50c96426,0x5089456e,0x50a92e34,
+        0x91278000,0x912a0220,0xb00a0002,0x4e800020
+    };
+    return (code[0]&0xffff0000u)==0x81420000u &&
+           equal(code+1,blend_tail,sizeof(blend_tail));
 }
 
 static int is_mode(const rvl_mode *mode)
@@ -171,22 +155,6 @@ static void patch_gx_filter(mfb_patch_report *report,const u32 config[6],
     }
 }
 
-/* Force GXSetDither to use its known zero register for the dither bit.  This
- * keeps all other PE colour-mode state intact and makes later game requests
- * unable to turn dithering back on. */
-static void patch_dithering(mfb_patch_report *report,const u32 config[6],
-                            u8 *data,u32 length)
-{
-    if((config[3]&CONFIG_DISABLE_DITHER)==0 || length<40u)return;
-    for(u32 offset=0;offset+40u<=length;offset+=4) {
-        u32 *const code=(u32*)(data+offset);
-        if(is_gx_set_dither(code)) {
-            code[4]&=~(31u<<21);
-            ++report->dither_functions_changed;
-        }
-    }
-}
-
 /* Replace the final return value in the SDK IPL aspect query wrapper.  This
  * changes projection selection only in titles which use the supported query;
  * it does not stretch the VI framebuffer itself. */
@@ -221,11 +189,49 @@ static u8 *safe_code_cave(u8 *data,u32 length)
 {
     static const u8 prefix_a[9]={0x80,0x1e,0,0,0x3c,0x60,0x80,0,0x83};
     static const u8 prefix_b[9]={0x80,0x1f,0,0,0x3c,0x60,0x80,0,0x83};
-    for(u32 offset=0;offset+80u<=length;offset+=4) {
+    for(u32 offset=0;offset+124u<=length;offset+=4) {
         if((equal(data+offset,prefix_a,9)||equal(data+offset,prefix_b,9)) &&
            *(u32*)(data+offset+36)==0x38000001)return data+offset+36;
     }
     return 0;
+}
+
+/* Swiss keeps normal ordered colour dithering and clears the PE dither bit
+ * only for conventional alpha blending where both source and destination
+ * contribute.  Keep the persistent trampoline in the conventional Wii hook
+ * area below 0x80003000; unlike a guessed gap in game text, this area is
+ * explicitly reserved for loader hooks and is not a game execution path. */
+static void patch_runtime_dithering(mfb_patch_report *report,
+                                    const u32 config[6])
+{
+    u8 *const base=(u8*)0x80000000;
+    const u32 length=0x00900000;
+    if((config[3]&CONFIG_DISABLE_DITHER)==0)return;
+    u32 *code=0;
+    for(u32 offset=0;offset+80u<=length;offset+=4) {
+        u32 *const candidate=(u32*)(base+offset);
+        if(is_gx_set_blend_mode(candidate)) {
+            code=candidate;
+            break;
+        }
+    }
+    if(!code)return;
+    u32 *const hook=(u32*)0x80001820;
+    hook[0]=code[17];   /* retain the unmodified GX shadow state */
+    hook[1]=0x2c030001; /* cmpwi r3,GX_BM_BLEND */
+    hook[2]=0x4082001c; /* bne write */
+    hook[3]=0x2c040000; /* cmpwi r4,0 */
+    hook[4]=0x41820014; /* beq write */
+    hook[5]=0x2c050000; /* cmpwi r5,0 */
+    hook[6]=0x4182000c; /* beq write */
+    hook[7]=0x39800004; /* li r12,PE_DITHER */
+    hook[8]=0x7d296078; /* andc r9,r9,r12 */
+    hook[9]=code[16];   /* stw r9,-0x8000(r7) */
+    hook[10]=branch((u32)&hook[10],(u32)&code[18]);
+    code[16]=branch((u32)&code[16],(u32)hook);
+    mfb_dc_flush(hook,44); mfb_ic_invalidate(hook,44);
+    mfb_dc_flush(&code[16],4); mfb_ic_invalidate(&code[16],4);
+    report->dither_functions_changed=1;
 }
 
 static void patch_480p(mfb_patch_report *report,const u32 config[6])
@@ -329,7 +335,6 @@ void mfb_patch_section(mfb_patch_report *report,const u32 config[6],
     ++report->sections;
     patch_modes(report,config,address,length);
     patch_gx_filter(report,config,address,length);
-    patch_dithering(report,config,address,length);
     patch_aspect(report,config,address,length);
 }
 
@@ -337,4 +342,5 @@ void mfb_patch_finalize(mfb_patch_report *report,const u32 config[6])
 {
     patch_runtime_width(report,config);
     patch_480p(report,config);
+    patch_runtime_dithering(report,config);
 }

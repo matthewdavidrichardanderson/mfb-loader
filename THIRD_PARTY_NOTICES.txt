@@ -29,7 +29,11 @@ https://github.com/Fledge68/WiiFlow_Lite
 USB Loader GX
 https://github.com/wiidev/usbloadergx
 
-This includes the GXSetDither signature used by the optional dithering patch.
+Swiss
+https://github.com/emukidid/swiss-gc
+
+This includes the selective alpha-dither behavior developed by Extrems and
+used as the reference for MFB Loader's optional dithering patch.
 
 This includes the 480p pixel fix published by leseratte and based on the issue
 identified by Extrems, as well as patch work originating in Gecko OS by Nuke.

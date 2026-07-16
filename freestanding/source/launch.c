@@ -169,5 +169,9 @@ void mfb_payload_main(void)
     wait_us(60000);
     void (*game)(void)=final(); if(!game)stop(0xe009);
     restore_vi();
-    game(); stop(0xe00a);
+    /* The game entry point is a one-way transfer, not an ordinary C call.
+     * Match established Wii booters: put the entry in LR and branch without
+     * linking, so no return address into MFB survives the handoff. */
+    __asm__ volatile("mtlr %0\n\tblr" : : "r"(game));
+    __builtin_unreachable();
 }
