@@ -57,14 +57,15 @@ static NORETURN void stop(u32 code)
     mfb_dc_flush((void*)0x800030e0,32);
     restore_vi();
     /* Preserve the launch screen but paint one bright bar per failed stage.
-     * This remains readable over composite and does not require libogc. */
+     * Sixteen cells keep stages 11-15 distinct instead of saturating at the
+     * ten cells used by the original diagnostic. */
     if (PARAM->diagnostic_xfb) {
         volatile u32 *xfb=(volatile u32*)PARAM->diagnostic_xfb;
         const u32 stage=code&15u;
         for(u32 y=0;y<48u;++y) {
             for(u32 x=0;x<320u;++x) {
-                const u32 cell=x/32u, within=x%32u;
-                xfb[y*320u+x]=(cell<stage&&within<20u)?0xeb80eb80:0x10801080;
+                const u32 cell=x/20u, within=x%20u;
+                xfb[y*320u+x]=(cell<stage&&within<12u)?0xeb80eb80:0x10801080;
             }
         }
         mfb_dc_flush((void*)xfb,48u*320u*sizeof(*xfb));
@@ -131,9 +132,18 @@ void mfb_payload_main(void)
     mfb_params p; mfb_memcpy(&p,(const void*)PARAM,sizeof(p));
     if(p.magic!=MAGIC) stop(0xe001);
     mfb_ipc_init();
-    if(mfb_es_launch_ios(p.requested_ios)<0) stop(0xe00f);
-    wait_us(100000);
-    mfb_ipc_init();
+    const s32 es_result=mfb_es_launch_ios(p.requested_ios);
+    if(es_result<0) {
+        switch(es_result) {
+            case MFB_ES_FAIL_OPEN:       stop(0xe009);
+            case MFB_ES_FAIL_VIEW_COUNT: stop(0xe00a);
+            case MFB_ES_FAIL_VIEW_RANGE: stop(0xe00b);
+            case MFB_ES_FAIL_VIEWS:      stop(0xe00c);
+            case MFB_ES_FAIL_LAUNCH:     stop(0xe00d);
+            case MFB_ES_FAIL_READY:      stop(0xe00e);
+            default:                     stop(0xe00f);
+        }
+    }
     if(mfb_di_open()<0) stop(0xe002);
     /* The drive was reset and identified during inspection.  After switching
      * to the title's IOS, preserve that state: reopen DI and the partition,

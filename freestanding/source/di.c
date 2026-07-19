@@ -20,7 +20,7 @@ static s32 simple(u32 command)
     if (command == 0x8a) input[1] = 1;
     return normalized(mfb_ios_ioctl(fd, command, input, 0x20, output, 0x20));
 }
-s32 mfb_di_open(void) { fd = mfb_ios_open(di_path, 0); return fd < 0 ? fd : 0; }
+s32 mfb_di_open(void) { fd = mfb_ios_open(di_path, 2); return fd < 0 ? fd : 0; }
 s32 mfb_di_close(void) { return fd < 0 ? 0 : mfb_ios_close(fd); }
 s32 mfb_di_reset(void) { return simple(0x8a); }
 s32 mfb_di_identify(void) { return simple(0x12); }

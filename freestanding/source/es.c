@@ -2,6 +2,7 @@
 /* Copyright (C) 2026 matthewdavidrichardanderson */
 
 #include "mfb_es.h"
+#include "mfb_cache.h"
 #include "mfb_ipc.h"
 
 #define ES_LAUNCH_TITLE 0x08
@@ -18,7 +19,7 @@ static mfb_iovec vectors[3] ALIGNED(32);
 s32 mfb_es_launch_ios(u8 ios)
 {
     const s32 es = mfb_ios_open(es_path, 0);
-    if (es < 0) return es;
+    if (es < 0) return MFB_ES_FAIL_OPEN;
 
     title_id = 0x0000000100000000ULL | ios;
     view_count = 0;
@@ -27,8 +28,8 @@ s32 mfb_es_launch_ios(u8 ios)
     vectors[1].data = &view_count;
     vectors[1].length = sizeof(view_count);
     s32 result = mfb_ios_ioctlv(es, ES_GET_VIEW_COUNT, 1, 1, vectors);
-    if (result < 0) return result;
-    if (view_count == 0 || view_count > 4) return -4;
+    if (result < 0) return MFB_ES_FAIL_VIEW_COUNT;
+    if (view_count == 0 || view_count > 4) return MFB_ES_FAIL_VIEW_RANGE;
 
     vectors[0].data = &title_id;
     vectors[0].length = sizeof(title_id);
@@ -37,11 +38,19 @@ s32 mfb_es_launch_ios(u8 ios)
     vectors[2].data = ticket_views;
     vectors[2].length = TICKET_VIEW_SIZE * view_count;
     result = mfb_ios_ioctlv(es, ES_GET_VIEWS, 2, 1, vectors);
-    if (result < 0) return result;
+    if (result < 0) return MFB_ES_FAIL_VIEWS;
 
     vectors[0].data = &title_id;
     vectors[0].length = sizeof(title_id);
     vectors[1].data = ticket_views;
     vectors[1].length = TICKET_VIEW_SIZE;
-    return mfb_ios_ioctlv_reboot(es, ES_LAUNCH_TITLE, 2, vectors);
+    /* IOS writes its new version here when the background launch completes. */
+    *(volatile u32 *)0x80003140 = 0;
+    mfb_dc_flush((void *)0x80003140, 32);
+    result = mfb_ios_ioctlv_reboot(es, ES_LAUNCH_TITLE, 2, vectors);
+    if (result < 0) return MFB_ES_FAIL_LAUNCH;
+    result = mfb_ipc_finish_reboot(ios);
+    if (result == -118) return MFB_ES_FAIL_READY;
+    if (result < 0) return MFB_ES_FAIL_VERSION;
+    return result;
 }

@@ -39,6 +39,9 @@ GameCube controller: D-pad selects or changes options, A advances a value, Z
 opens or returns from diagnostics, B returns from diagnostics, and Start exits
 to the Homebrew Channel.
 
+Launch failure bar and disc-slot light meanings are listed in
+[Launch diagnostics](docs/DIAGNOSTICS.md).
+
 ## Install
 
 Copy `apps/mfb-loader/` from a packaged release to the `apps/` directory on

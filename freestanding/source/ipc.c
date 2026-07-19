@@ -55,6 +55,44 @@ static int wait_control(u32 mask)
 
 void mfb_ipc_init(void) { IPC_CTRL = 0x06; barrier(); }
 
+s32 mfb_ipc_finish_reboot(u8 expected_ios)
+{
+    /*
+     * Match libogc2's __IOS_LaunchNewIOS sequence.  IOS publishes its
+     * version in low memory once the new kernel is alive, then raises the
+     * IPC acknowledgement used to establish fresh mailbox ownership.
+     */
+    const u64 ios_deadline = timebase() + 10u * 60750000u;
+    u32 version;
+    for (;;) {
+        /* IOS writes through a different processor/cache domain. */
+        mfb_dc_invalidate((void *)0x80003140, 32);
+        version = *(volatile u32 *)0x80003140;
+        if ((version >> 16) != 0) break;
+        if (timebase() >= ios_deadline) return -118;
+        delay_us(1000);
+    }
+
+    /* libogc2 allows 400 ms for the new IOS IPC endpoint to appear. */
+    const u64 ipc_deadline = timebase() + 400u * 60750u;
+    while ((IPC_CTRL & 2u) == 0 && timebase() < ipc_deadline)
+        delay_us(1000);
+
+    /*
+     * We poll IPC and have no interrupt handler, so do not copy libogc2's
+     * interrupt-enable bits from 0x38.  Clear the new-IOS readiness event,
+     * then release mailbox ownership as separate writes, matching TinyLoad's
+     * freestanding two-ACK path.
+     */
+    IPC_CTRL = 0x06;
+    barrier();
+    IPC_CTRL = 0x08;
+    barrier();
+    mfb_dc_invalidate((void *)0x80003140, 32);
+    version = *(volatile u32 *)0x80003140;
+    return (version >> 16) == expected_ios ? expected_ios : -119;
+}
+
 static s32 submit(void)
 {
     mfb_dc_flush(&request, sizeof(request));
@@ -78,39 +116,48 @@ static s32 submit(void)
     return request.result;
 }
 
-/* ES_LaunchTitle reboots IOS and produces two acknowledgements rather than a
- * normal IPC reply.  Release ownership after the second acknowledgement so
- * the newly launched IOS can take over the registers. */
+/*
+ * Background ES_LaunchTitle completes on its first acknowledgement.  This is
+ * the path used by current libogc2: acknowledge it, release mailbox ownership,
+ * then let mfb_ipc_finish_reboot wait for the new IOS and IPC endpoint.
+ */
 static s32 submit_reboot(void)
 {
     mfb_dc_flush(&request, sizeof(request));
-    delay_us(500);
     IPC_MSG_PPC = physical(&request);
     barrier();
     IPC_CTRL = 1;
     barrier();
 
-    const u64 first_deadline = timebase() + 5u * 60750000u;
-    u32 control;
-    while (((control = IPC_CTRL & 6u)) == 0) {
-        if (timebase() >= first_deadline) return -116;
-    }
-    delay_us(500);
-    if (control & 4u) return -117;
-    IPC_CTRL = 2;
-    barrier();
+    const u64 deadline = timebase() + 5u * 60750000u;
+    for (;;) {
+        const u32 control = IPC_CTRL;
 
-    const u64 second_deadline = timebase() + 5u * 60750000u;
-    while (((control = IPC_CTRL & 6u)) == 0) {
-        if (timebase() >= second_deadline) return -116;
+        /*
+         * libogc2's interrupt path processes a reply before an ACK when both
+         * are pending.  A launch may legitimately complete either way.
+         */
+        if (control & 4u) {
+            const u32 reply = IPC_MSG_ARM;
+            IPC_CTRL = 4;
+            barrier();
+            IPC_CTRL = 8;
+            barrier();
+            if (reply != physical(&request)) continue;
+            mfb_dc_invalidate(&request, sizeof(request));
+            return request.result;
+        }
+
+        if (control & 2u) {
+            IPC_CTRL = 2;
+            barrier();
+            IPC_CTRL = 8;
+            barrier();
+            return 0;
+        }
+
+        if (timebase() >= deadline) return -116;
     }
-    delay_us(500);
-    if (control & 4u) return -117;
-    IPC_CTRL = 2;
-    barrier();
-    IPC_CTRL = 8;
-    barrier();
-    return 0;
 }
 
 s32 mfb_ios_open(const char *path, u32 mode)

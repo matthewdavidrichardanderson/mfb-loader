@@ -1,7 +1,7 @@
 /build/
 /dist/
 /*.zip
-/docs/
+/local-docs/
 /*.dol
 /*.elf
 /*.map
