@@ -6,7 +6,7 @@ followed by a longer pause before repeating.
 
 | Bars or pulses | Meaning |
 | ---: | --- |
-| 1 | Invalid launch parameters, or Disable dithering was requested but no compatible patch location was found. |
+| 1 | Invalid launch parameters, or Dithering was set to Off but no compatible patch location was found. |
 | 2 | Failed to open `/dev/di` after reloading IOS. |
 | 3 | Failed to read the disc ID. |
 | 4 | Failed to reopen the game partition. |

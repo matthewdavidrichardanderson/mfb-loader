@@ -27,8 +27,8 @@ static void draw_menu(const mfb_launch_config *config, int row,
            mfb_scale_mode_string(config->scale_mode));
     printf("  %c Deflicker        : %s\n", row == ROW_FILTER ? '>' : ' ',
            mfb_filter_mode_string(config->filter_mode));
-    printf("  %c Disable dithering: %s\n", row == ROW_DITHER ? '>' : ' ',
-           config->disable_dithering ? "On" : "Off");
+    printf("  %c Dithering        : %s\n", row == ROW_DITHER ? '>' : ' ',
+           config->disable_dithering ? "Off" : "Auto");
     printf("  %c 480p pixel patch : %s\n", row == ROW_480P ? '>' : ' ',
            config->patch_480p ? "On" : "Off");
     printf("  %c Region policy    : %s\n\n", row == ROW_REGION ? '>' : ' ',
@@ -107,7 +107,7 @@ static void change_setting(mfb_launch_config *config, int row, int direction)
              mfb_aspect_mode_string(config->aspect_mode),
              mfb_scale_mode_string(config->scale_mode),
              mfb_filter_mode_string(config->filter_mode),
-             config->disable_dithering ? "disabled" : "game",
+             config->disable_dithering ? "off" : "auto",
              config->patch_480p ? "on" : "off",
              config->region_policy == MFB_REGION_DISC ? "free" : "console");
     if (!mfb_settings_save(config))

@@ -13,6 +13,7 @@ Current video options include:
 - video output and aspect ratio;
 - framebuffer/VI horizontal scaling;
 - deflicker filtering;
+- dithering removal;
 - the 480p pixel-clock patch;
 - region handling.
 
@@ -24,8 +25,7 @@ all.
 
 The current build loads physical Wii discs and applies video settings while the
 game is loaded. Framebuffer scaling, deflicker control, supported aspect-ratio
-patching, and the two known 480p pixel-fix variants are connected to the game
-launch path.
+patching, and the 480p pixel fix are connected to the game launch path.
 
 Auto settings leave the corresponding game behaviour unchanged. Forced output
 standards and full region-free handling remain under development.
