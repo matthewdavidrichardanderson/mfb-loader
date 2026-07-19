@@ -18,6 +18,10 @@ Current video options include:
 
 ## Status
 
+MFB Loader is currently only considered compatible with The Legend of Zelda:
+Twilight Princess. Other games may work, but can have issues or may not boot at
+all.
+
 The current build loads physical Wii discs and applies video settings while the
 game is loaded. Framebuffer scaling, deflicker control, supported aspect-ratio
 patching, and the two known 480p pixel-fix variants are connected to the game
